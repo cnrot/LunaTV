@@ -46,8 +46,8 @@ export default function SkipController({
   const [batchSettings, setBatchSettings] = useState(() => {
     const savedEnableAutoSkip = typeof window !== 'undefined' ? localStorage.getItem('enableAutoSkip') : null;
     const savedEnableAutoNextEpisode = typeof window !== 'undefined' ? localStorage.getItem('enableAutoNextEpisode') : null;
-    const userAutoSkip = savedEnableAutoSkip !== null ? JSON.parse(savedEnableAutoSkip) : true;
-    const userAutoNextEpisode = savedEnableAutoNextEpisode !== null ? JSON.parse(savedEnableAutoNextEpisode) : true;
+    const userAutoSkip = savedEnableAutoSkip !== null ? JSON.parse(savedEnableAutoSkip) : false;
+    const userAutoNextEpisode = savedEnableAutoNextEpisode !== null ? JSON.parse(savedEnableAutoNextEpisode) : false;
 
     return {
       openingStart: '0:00',   // 片头开始时间（分:秒格式）
@@ -68,8 +68,8 @@ export default function SkipController({
     const loadUserSettings = () => {
       const savedEnableAutoSkip = localStorage.getItem('enableAutoSkip');
       const savedEnableAutoNextEpisode = localStorage.getItem('enableAutoNextEpisode');
-      const userAutoSkip = savedEnableAutoSkip !== null ? JSON.parse(savedEnableAutoSkip) : true;
-      const userAutoNextEpisode = savedEnableAutoNextEpisode !== null ? JSON.parse(savedEnableAutoNextEpisode) : true;
+      const userAutoSkip = savedEnableAutoSkip !== null ? JSON.parse(savedEnableAutoSkip) : false;
+      const userAutoNextEpisode = savedEnableAutoNextEpisode !== null ? JSON.parse(savedEnableAutoNextEpisode) : false;
 
       setBatchSettings(prev => ({
         ...prev,
@@ -547,8 +547,8 @@ export default function SkipController({
         end: newSegment.end,
         type: newSegment.type as 'opening' | 'ending',
         title: newSegment.title || (newSegment.type === 'opening' ? '片头' : '片尾'),
-        autoSkip: true, // 默认开启自动跳过
-        autoNextEpisode: newSegment.type === 'ending', // 片尾默认开启自动下一集
+        autoSkip: false, // 默认关闭自动跳过
+        autoNextEpisode: newSegment.type === 'ending', // 片尾默认关闭自动下一集
       };
 
       const updatedConfig: EpisodeSkipConfig = {
@@ -729,8 +729,8 @@ export default function SkipController({
   useEffect(() => {
     const savedEnableAutoSkip = localStorage.getItem('enableAutoSkip');
     const savedEnableAutoNextEpisode = localStorage.getItem('enableAutoNextEpisode');
-    const userAutoSkip = savedEnableAutoSkip !== null ? JSON.parse(savedEnableAutoSkip) : true;
-    const userAutoNextEpisode = savedEnableAutoNextEpisode !== null ? JSON.parse(savedEnableAutoNextEpisode) : true;
+    const userAutoSkip = savedEnableAutoSkip !== null ? JSON.parse(savedEnableAutoSkip) : false;
+    const userAutoNextEpisode = savedEnableAutoNextEpisode !== null ? JSON.parse(savedEnableAutoNextEpisode) : false;
 
     console.log(`📖 [SkipController] 读取用户设置: autoSkip=${userAutoSkip}, autoNextEpisode=${userAutoNextEpisode}`);
 
@@ -757,13 +757,13 @@ export default function SkipController({
           openingEnd: openingSegment ? secondsToTime(openingSegment.end) : prev.openingEnd,
           endingStart: endingSegment
             ? (endingSegment.mode === 'remaining' && endingSegment.remainingTime
-                ? secondsToTime(endingSegment.remainingTime)
-                : (duration > 0 ? secondsToTime(duration - endingSegment.start) : prev.endingStart))
+              ? secondsToTime(endingSegment.remainingTime)
+              : (duration > 0 ? secondsToTime(duration - endingSegment.start) : prev.endingStart))
             : prev.endingStart,
           endingEnd: endingSegment
             ? (endingSegment.mode === 'remaining' && endingSegment.end < duration && duration > 0
-                ? secondsToTime(duration - endingSegment.end)
-                : '')
+              ? secondsToTime(duration - endingSegment.end)
+              : '')
             : prev.endingEnd,
           endingMode: endingSegment?.mode === 'absolute' ? 'absolute' : 'remaining',
           // 🔑 保持当前的 autoSkip 和 autoNextEpisode 不变（已经通过其他 useEffect 从 localStorage 读取）
@@ -817,8 +817,8 @@ export default function SkipController({
     // 取消时从 localStorage 读取用户设置，不能硬编码默认值
     const savedEnableAutoSkip = localStorage.getItem('enableAutoSkip');
     const savedEnableAutoNextEpisode = localStorage.getItem('enableAutoNextEpisode');
-    const userAutoSkip = savedEnableAutoSkip !== null ? JSON.parse(savedEnableAutoSkip) : true;
-    const userAutoNextEpisode = savedEnableAutoNextEpisode !== null ? JSON.parse(savedEnableAutoNextEpisode) : true;
+    const userAutoSkip = savedEnableAutoSkip !== null ? JSON.parse(savedEnableAutoSkip) : false;
+    const userAutoNextEpisode = savedEnableAutoNextEpisode !== null ? JSON.parse(savedEnableAutoNextEpisode) : false;
 
     setBatchSettings({
       openingStart: '0:00',
@@ -906,7 +906,7 @@ export default function SkipController({
                     checked={batchSettings.autoSkip}
                     onChange={(e) => {
                       const newValue = e.target.checked;
-                      setBatchSettings({...batchSettings, autoSkip: newValue});
+                      setBatchSettings({ ...batchSettings, autoSkip: newValue });
                       // 🔑 保存到 localStorage，确保跨集保持
                       localStorage.setItem('enableAutoSkip', JSON.stringify(newValue));
                       // 🔑 通知其他组件 localStorage 已更新
@@ -926,7 +926,7 @@ export default function SkipController({
                     checked={batchSettings.autoNextEpisode}
                     onChange={(e) => {
                       const newValue = e.target.checked;
-                      setBatchSettings({...batchSettings, autoNextEpisode: newValue});
+                      setBatchSettings({ ...batchSettings, autoNextEpisode: newValue });
                       // 🔑 保存到 localStorage，确保跨集保持
                       localStorage.setItem('enableAutoNextEpisode', JSON.stringify(newValue));
                       // 🔑 通知其他组件 localStorage 已更新
@@ -959,7 +959,7 @@ export default function SkipController({
                   <input
                     type="text"
                     value={batchSettings.openingStart}
-                    onChange={(e) => setBatchSettings({...batchSettings, openingStart: e.target.value})}
+                    onChange={(e) => setBatchSettings({ ...batchSettings, openingStart: e.target.value })}
                     className="w-full px-4 py-2.5 border border-gray-300/50 dark:border-gray-600/50 rounded-lg bg-white/80 dark:bg-gray-700/80 text-gray-900 dark:text-gray-100 backdrop-blur-sm focus:ring-2 focus:ring-green-500/50 focus:border-green-500 transition-all"
                     placeholder="0:00"
                   />
@@ -973,7 +973,7 @@ export default function SkipController({
                   <input
                     type="text"
                     value={batchSettings.openingEnd}
-                    onChange={(e) => setBatchSettings({...batchSettings, openingEnd: e.target.value})}
+                    onChange={(e) => setBatchSettings({ ...batchSettings, openingEnd: e.target.value })}
                     className="w-full px-4 py-2.5 border border-gray-300/50 dark:border-gray-600/50 rounded-lg bg-white/80 dark:bg-gray-700/80 text-gray-900 dark:text-gray-100 backdrop-blur-sm focus:ring-2 focus:ring-green-500/50 focus:border-green-500 transition-all mb-2"
                     placeholder="1:30"
                   />
@@ -982,7 +982,7 @@ export default function SkipController({
                     className="w-full px-4 py-2 bg-linear-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg text-sm font-medium transition-all shadow-md hover:shadow-lg hover:scale-105 backdrop-blur-sm"
                     title="标记当前播放时间为片头结束时间"
                   >
-                      📍 标记当前时间
+                    📍 标记当前时间
                   </button>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">格式: 分:秒 (如 1:30)</p>
                 </div>
@@ -1007,7 +1007,7 @@ export default function SkipController({
                         name="endingMode"
                         value="remaining"
                         checked={batchSettings.endingMode === 'remaining'}
-                        onChange={(e) => setBatchSettings({...batchSettings, endingMode: e.target.value})}
+                        onChange={(e) => setBatchSettings({ ...batchSettings, endingMode: e.target.value })}
                         className="mr-2"
                       />
                       剩余时间（推荐）
@@ -1018,7 +1018,7 @@ export default function SkipController({
                         name="endingMode"
                         value="absolute"
                         checked={batchSettings.endingMode === 'absolute'}
-                        onChange={(e) => setBatchSettings({...batchSettings, endingMode: e.target.value})}
+                        onChange={(e) => setBatchSettings({ ...batchSettings, endingMode: e.target.value })}
                         className="mr-2"
                       />
                       绝对时间
@@ -1039,7 +1039,7 @@ export default function SkipController({
                   <input
                     type="text"
                     value={batchSettings.endingStart}
-                    onChange={(e) => setBatchSettings({...batchSettings, endingStart: e.target.value})}
+                    onChange={(e) => setBatchSettings({ ...batchSettings, endingStart: e.target.value })}
                     className="w-full px-4 py-2.5 border border-gray-300/50 dark:border-gray-600/50 rounded-lg bg-white/80 dark:bg-gray-700/80 text-gray-900 dark:text-gray-100 backdrop-blur-sm focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all mb-2"
                     placeholder={batchSettings.endingMode === 'remaining' ? '2:00' : '20:00'}
                   />
@@ -1065,7 +1065,7 @@ export default function SkipController({
                   <input
                     type="text"
                     value={batchSettings.endingEnd}
-                    onChange={(e) => setBatchSettings({...batchSettings, endingEnd: e.target.value})}
+                    onChange={(e) => setBatchSettings({ ...batchSettings, endingEnd: e.target.value })}
                     className="w-full px-4 py-2.5 border border-gray-300/50 dark:border-gray-600/50 rounded-lg bg-white/80 dark:bg-gray-700/80 text-gray-900 dark:text-gray-100 backdrop-blur-sm focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all"
                     placeholder="留空直接跳下一集"
                   />
