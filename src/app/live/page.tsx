@@ -5,7 +5,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 
 import Hls from 'hls.js';
-import { Heart, Menu, Radio, RefreshCw, Search, Tv, X } from 'lucide-react';
+import { Heart, Menu, Radio, RefreshCw, Search, Tv, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Tabs, Tab, Box } from '@mui/material';
 
@@ -189,6 +189,9 @@ function LivePageClient() {
   const [favorited, setFavorited] = useState(false);
   const favoritedRef = useRef(false);
   const currentChannelRef = useRef<LiveChannel | null>(null);
+
+  // 频道名展开状态
+  const [expandedChannels, setExpandedChannels] = useState<Set<string>>(new Set());
 
   // DVR 回放检测状态
   const [dvrDetected, setDvrDetected] = useState(false);
@@ -993,6 +996,19 @@ function LivePageClient() {
     debouncedSourceSearch(query);
   };
 
+  // 切换频道名展开状态
+  const toggleChannelNameExpanded = (channelId: string) => {
+    setExpandedChannels(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(channelId)) {
+        newSet.delete(channelId);
+      } else {
+        newSet.add(channelId);
+      }
+      return newSet;
+    });
+  };
+
   // 切换收藏
   const handleToggleFavorite = async () => {
     if (!currentSourceRef.current || !currentChannelRef.current) return;
@@ -1600,7 +1616,7 @@ function LivePageClient() {
     };
 
     loadAndInit();
-  }, [Hls, videoUrl, currentChannel, loading]);
+  }, [Hls, videoUrl, currentChannel, loading, directPlaybackEnabled]);
 
   // 清理播放器资源
   useEffect(() => {
@@ -1800,39 +1816,78 @@ function LivePageClient() {
           <h1 className='text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2'>
             <Radio className='w-5 h-5 text-blue-500 shrink-0' />
             <div className='min-w-0 flex-1 flex items-center gap-2'>
-              {/* 频道名称 - 使用 line-clamp 确保移动端完整显示 */}
-              <div className='min-w-0 flex-1'>
-                <div className='line-clamp-1 md:line-clamp-2'>
-                  <span className='text-gray-900 dark:text-gray-100'>
-                    {currentSource?.name}
-                  </span>
-                  {currentSource && currentChannel && (
-                    <span className='text-gray-500 dark:text-gray-400'>
-                      {` > ${currentChannel.name}`}
+              {/* 频道名称 - 点击展开/收起 */}
+              <div
+                className='min-w-0 flex-1 flex items-center gap-1 cursor-pointer select-none group'
+                onClick={() => currentChannel && toggleChannelNameExpanded('page-title')}
+              >
+                <div className='min-w-0 flex-1'>
+                  <div className={expandedChannels.has('page-title') ? '' : 'line-clamp-1 md:line-clamp-2'}>
+                    <span className='text-gray-900 dark:text-gray-100'>
+                      {currentSource?.name}
                     </span>
-                  )}
-                  {currentSource && !currentChannel && (
-                    <span className='text-gray-500 dark:text-gray-400'>
-                      {` > ${currentSource.name}`}
-                    </span>
-                  )}
+                    {currentSource && currentChannel && (
+                      <span className='text-gray-500 dark:text-gray-400'>
+                        {` > ${currentChannel.name}`}
+                      </span>
+                    )}
+                    {currentSource && !currentChannel && (
+                      <span className='text-gray-500 dark:text-gray-400'>
+                        {` > ${currentSource.name}`}
+                      </span>
+                    )}
+                  </div>
                 </div>
+                {/* Chevron图标 - 始终显示，带旋转动画 */}
+                {currentChannel && (
+                  <div className='shrink-0 flex items-center gap-1'>
+                    {expandedChannels.has('page-title') ? (
+                      <ChevronUp className='w-4 h-4 text-blue-500 dark:text-blue-400 transition-transform duration-300' />
+                    ) : (
+                      <ChevronDown className='w-4 h-4 text-gray-400 dark:text-gray-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-all duration-300' />
+                    )}
+                    {/* 文字提示 - 仅桌面端显示 */}
+                    <span className='hidden md:inline text-xs text-blue-500 dark:text-blue-400'>
+                      {expandedChannels.has('page-title') ? '收起' : '展开'}
+                    </span>
+                  </div>
+                )}
               </div>
-              {/* 播放模式指示器 - 移动端始终可见 */}
+              {/* 播放模式切换按钮 - 显示开关状态和实际播放模式 */}
               {currentChannel && (
-                <span className='inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full shrink-0 bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/40 dark:to-cyan-900/40 border border-blue-200 dark:border-blue-700 whitespace-nowrap'>
-                  {playbackMode === 'direct' ? (
+                <button
+                  onClick={() => {
+                    const newValue = !directPlaybackEnabled;
+                    setDirectPlaybackEnabled(newValue);
+                    // 保存到 localStorage
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem('live-direct-playback-enabled', JSON.stringify(newValue));
+                    }
+                    // useEffect 会自动检测 directPlaybackEnabled 的变化并重新加载播放器
+                  }}
+                  className='inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full shrink-0 bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/40 dark:to-cyan-900/40 border border-blue-200 dark:border-blue-700 whitespace-nowrap cursor-pointer hover:opacity-80 active:scale-95 transition-all duration-150'
+                  title={
+                    directPlaybackEnabled
+                      ? (playbackMode === 'direct'
+                          ? '直连模式已开启，当前使用直连播放。点击关闭。'
+                          : '直连模式已开启，但当前视频源不支持CORS，使用代理播放。点击关闭。')
+                      : '直连模式已关闭，使用代理播放。点击开启。'
+                  }
+                >
+                  {directPlaybackEnabled ? (
                     <>
                       <span className='text-green-600 dark:text-green-400'>⚡</span>
-                      <span className='text-green-700 dark:text-green-300'>直连</span>
+                      <span className='text-green-700 dark:text-green-300'>
+                        直连{playbackMode === 'proxy' ? '(降级)' : ''}
+                      </span>
                     </>
                   ) : (
                     <>
-                      <span className='text-orange-600 dark:text-orange-400'>🔄</span>
-                      <span className='text-orange-700 dark:text-orange-300'>代理</span>
+                      <span className='text-gray-600 dark:text-gray-400'>🔒</span>
+                      <span className='text-gray-700 dark:text-gray-300'>代理</span>
                     </>
                   )}
-                </span>
+                </button>
               )}
             </div>
           </h1>
@@ -2193,9 +2248,31 @@ function LivePageClient() {
                                   )}
                                 </div>
                                 <div className='flex-1 min-w-0'>
-                                  {/* 频道名 - 移动端单行截断，桌面端显示2行 */}
-                                  <div className='text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-1 md:line-clamp-2' title={channel.name}>
-                                    {channel.name}
+                                  {/* 频道名 - 点击展开/收起 */}
+                                  <div
+                                    className='flex items-center gap-1 cursor-pointer select-none group'
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleChannelNameExpanded(channel.id);
+                                    }}
+                                  >
+                                    <div className='flex-1 min-w-0'>
+                                      <div className={`text-sm font-medium text-gray-900 dark:text-gray-100 ${expandedChannels.has(channel.id) ? '' : 'line-clamp-1 md:line-clamp-2'}`}>
+                                        {channel.name}
+                                      </div>
+                                    </div>
+                                    {/* Chevron图标 - 始终显示，带旋转动画 */}
+                                    <div className='shrink-0 flex items-center gap-1'>
+                                      {expandedChannels.has(channel.id) ? (
+                                        <ChevronUp className='w-4 h-4 text-blue-500 dark:text-blue-400 transition-transform duration-300' />
+                                      ) : (
+                                        <ChevronDown className='w-4 h-4 text-gray-400 dark:text-gray-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-all duration-300' />
+                                      )}
+                                      {/* 文字提示 - 仅桌面端显示 */}
+                                      <span className='hidden md:inline text-xs text-blue-500 dark:text-blue-400'>
+                                        {expandedChannels.has(channel.id) ? '收起' : '展开'}
+                                      </span>
+                                    </div>
                                   </div>
                                   {/* 分组名 - 始终单行截断 */}
                                   <div className='text-xs text-gray-500 dark:text-gray-400 mt-1 truncate' title={channel.group}>
@@ -2286,17 +2363,39 @@ function LivePageClient() {
                                     )}
                                   </div>
                                   <div className='flex-1 min-w-0'>
-                                    {/* 搜索结果频道名 - 移动端单行截断，桌面端2行 */}
-                                    <div className='text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-1 md:line-clamp-2' title={channel.name}>
-                                      <span
-                                        dangerouslySetInnerHTML={{
-                                          __html: searchQuery ?
-                                            channel.name.replace(
-                                              new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'),
-                                              '<mark class="bg-yellow-200 dark:bg-yellow-800 px-0.5 rounded">$1</mark>'
-                                            ) : channel.name
-                                        }}
-                                      />
+                                    {/* 搜索结果频道名 - 点击展开/收起 */}
+                                    <div
+                                      className='flex items-center gap-1 cursor-pointer select-none group'
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleChannelNameExpanded(channel.id);
+                                      }}
+                                    >
+                                      <div className='flex-1 min-w-0'>
+                                        <div className={`text-sm font-medium text-gray-900 dark:text-gray-100 ${expandedChannels.has(channel.id) ? '' : 'line-clamp-1 md:line-clamp-2'}`}>
+                                          <span
+                                            dangerouslySetInnerHTML={{
+                                              __html: searchQuery ?
+                                                channel.name.replace(
+                                                  new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'),
+                                                  '<mark class="bg-yellow-200 dark:bg-yellow-800 px-0.5 rounded">$1</mark>'
+                                                ) : channel.name
+                                            }}
+                                          />
+                                        </div>
+                                      </div>
+                                      {/* Chevron图标 - 始终显示，带旋转动画 */}
+                                      <div className='shrink-0 flex items-center gap-1'>
+                                        {expandedChannels.has(channel.id) ? (
+                                          <ChevronUp className='w-4 h-4 text-blue-500 dark:text-blue-400 transition-transform duration-300' />
+                                        ) : (
+                                          <ChevronDown className='w-4 h-4 text-gray-400 dark:text-gray-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-all duration-300' />
+                                        )}
+                                        {/* 文字提示 - 仅桌面端显示 */}
+                                        <span className='hidden md:inline text-xs text-blue-500 dark:text-blue-400'>
+                                          {expandedChannels.has(channel.id) ? '收起' : '展开'}
+                                        </span>
+                                      </div>
                                     </div>
                                     {/* 搜索结果分组名 - 始终单行截断 */}
                                     <div className='text-xs text-gray-500 dark:text-gray-400 mt-1 truncate' title={channel.group}>
@@ -2563,9 +2662,31 @@ function LivePageClient() {
                   </div>
                   <div className='flex-1 min-w-0'>
                     <div className='flex items-center gap-3'>
-                      <h3 className='text-lg font-semibold text-gray-900 dark:text-gray-100 truncate'>
-                        {currentChannel.name}
-                      </h3>
+                      {/* 当前频道名 - 点击展开/收起 */}
+                      <div
+                        className='flex-1 min-w-0 flex items-center gap-1 cursor-pointer select-none group'
+                        onClick={() => toggleChannelNameExpanded('current-channel-info')}
+                      >
+                        <div className='flex-1 min-w-0'>
+                          <h3 className='text-lg font-semibold text-gray-900 dark:text-gray-100'>
+                            <div className={expandedChannels.has('current-channel-info') ? '' : 'truncate'}>
+                              {currentChannel.name}
+                            </div>
+                          </h3>
+                        </div>
+                        {/* Chevron图标 - 始终显示，带旋转动画 */}
+                        <div className='shrink-0 flex items-center gap-1'>
+                          {expandedChannels.has('current-channel-info') ? (
+                            <ChevronUp className='w-4 h-4 text-blue-500 dark:text-blue-400 transition-transform duration-300' />
+                          ) : (
+                            <ChevronDown className='w-4 h-4 text-gray-400 dark:text-gray-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-all duration-300' />
+                          )}
+                          {/* 文字提示 - 仅桌面端显示 */}
+                          <span className='hidden md:inline text-xs text-blue-500 dark:text-blue-400'>
+                            {expandedChannels.has('current-channel-info') ? '收起' : '展开'}
+                          </span>
+                        </div>
+                      </div>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
